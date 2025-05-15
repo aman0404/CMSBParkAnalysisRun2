@@ -1,0 +1,43 @@
+# define each cut’s parameters
+cuts:
+  # vertex‐level cuts
+  IsGoodRecoVertex:
+    branch: IsGoodRecoVertex
+    op: "!="
+    value: 0
+    reject_if: true        
+   
+  VectorSumPt_vs_SumPt:
+    branch1: VectorSumPt
+    branch2: SumPt
+    op: "<"
+    value: "0.05*branch2 + 15"
+    reject_if: true
+
+    #SumPt_min:
+    #  branch: SumPt
+    #  op: "<="
+    #  value: 25
+    #  reject_if: true         # SumPt < 25 -> reject
+
+  VLTrackNByVert_max:
+    branch: VLTrackNByVert
+    op: ">="
+    value: 3
+    reject_if: true
+
+  # track‐level cuts
+  # cuts to reject these tracks
+  #Track_SumPt_min:
+  #  branch: SumPt
+  #  op: "<="
+  #  value: 20
+  #  reject_if: true
+
+  #Track_VSP_ratio_min:
+  #  branch1: VectorSumPt
+  #  branch2: SumPt
+  #  op: "<"
+  #  value: "0.4"
+  #  reject_if: true
+

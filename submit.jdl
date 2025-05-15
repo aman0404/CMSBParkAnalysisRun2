@@ -1,0 +1,13 @@
+universe        = vanilla
+executable      = run_job.sh
+arguments       = $(input)
+transfer_input_files = processor.py, selections.yaml
+output          = logs/$(Cluster)_$(Process).out
+error           = logs/$(Cluster)_$(Process).err
+log             = logs/$(Cluster).log
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
++JobFlavour     = "workday"
+
+queue input from Run2018B_ParkingBPH4.txt
+
