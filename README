@@ -8,5 +8,12 @@ source test_run.sh
 To run over entire dataset (files listed in Run2018B_ParkingBPH4.txt):
 condor_submit submit.jdl 
 
+To run the plotter:
+
+python3 new_run_plotter.py
+
+
+main files:
+
 1. selections.yaml
 2. processor.py
