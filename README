@@ -1,2 +1,6 @@
+##Instructions to run the framework:
+
+source setup.sh
+
 1. selections.yaml
 2. processor.py
