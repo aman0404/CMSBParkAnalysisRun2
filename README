@@ -2,5 +2,11 @@
 
 source setup.sh
 
+For the test run:
+source test_run.sh
+
+To run over entire dataset (files listed in Run2018B_ParkingBPH4.txt):
+condor_submit submit.jdl 
+
 1. selections.yaml
 2. processor.py
