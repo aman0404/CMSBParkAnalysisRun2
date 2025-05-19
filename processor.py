@@ -37,39 +37,98 @@ def apply_cut(tree, cut_name):
     #return mask if cut.get("reject_if", False) else mask
 
 
-def muon_trigger_object_reject(trig_pt, trig_eta, trig_phi, muon_pt, muon_eta, muon_phi, muon_vert):
+def compute_event_mask(muon_eta, muon_phi, muon_vert, trig_eta, trig_phi):
+    # Output: per-event mask (True = keep, False = reject)
+    n_events = len(muon_eta)
+    event_mask = []
 
-    ##need to use this but could not find the awkward version
-    #muons = vector.awkward.zip({
-    #"pt": ak.ones_like(muon_eta),
-    #"eta": muon_eta,
-    #"phi": muon_phi,
-    #"mass": ak.ones_like(muon_eta)
-    #},with_name="LorentzVector")
+    for evt in range(n_events):
+        reject_event = False
 
-    #trigs = vector.awkward.zip({
-    #"pt": ak.ones_like(trig_eta),
-    #"eta": trig_eta,
-    #"phi": trig_phi,
-    #"mass": ak.ones_like(trig_eta)
-    #}, with_name="LorentzVector")
+        for i in range(len(muon_eta[evt])):
+            if muon_vert[evt][i] < 0:
+                continue
+
+            for j in range(len(trig_eta[evt])):
+                dR = deltaR(muon_eta[evt][i], muon_phi[evt][i],
+                            trig_eta[evt][j], trig_phi[evt][j])
+                if dR < 0.01:
+                    reject_event = True
+                    break
+            if reject_event:
+                break
+
+        event_mask.append(not reject_event)  # True = keep
+
+    return ak.Array(event_mask)
+
+    
+#def muon_trigger_object_reject(sumpt, trig_eta, trig_phi, muon_eta, muon_phi, muon_vert):
+#    final_vertex_mask = []
+#
+#    for evt_idx in range(len(muon_eta)):
+##        ##some muon vertex index were empty
+#        if len(muon_vert[evt_idx]) == 0 or ak.max(muon_vert[evt_idx]) < 0:
+#            final_vertex_mask.append([])
+#            continue
+#
+#        n_verts = int(ak.max(muon_vert[evt_idx]) + 1)
+#        evt_mask = [False] * n_verts
+#
+#        for mu_eta, mu_phi, mu_vtx in zip(muon_eta[evt_idx], muon_phi[evt_idx], muon_vert[evt_idx]):
+#            if mu_vtx < 0 or mu_vtx >= n_verts:
+#                continue  # skip invalid or out-of-bounds indices
+#
+#            for trig_eta_val, trig_phi_val in zip(trig_eta[evt_idx], trig_phi[evt_idx]):
+#                dR = deltaR(mu_eta, mu_phi, trig_eta_val, trig_phi_val)
+#                if dR < 0.01:
+#                    evt_mask[mu_vtx] = True
+#                    break  # No need to check other triggers for this muon
+#            final_vertex_mask.append(evt_mask)
+#
+#    print(len(final_vertex_mask[0]), len(muon_vert[0]))
+#
+#    return ak.Array(final_vertex_mask)
 
 
-    cartesian_muon_trig = ak.cartesian([muon_eta, muon_phi, trig_eta, trig_phi], nested=True)
-
-
-    # Extract the arrays for deltaR calculation
-    muon_eta_flat = cartesian_muon_trig["0"]  # First muon eta
-    muon_phi_flat = cartesian_muon_trig["1"]  # First muon phi
-    trig_eta_flat = cartesian_muon_trig["2"]  # Trigger eta
-    trig_phi_flat = cartesian_muon_trig["3"]  # Trigger phi
-
-    deltaR_values = deltaR(muon_eta_flat, muon_phi_flat, trig_eta_flat, trig_phi_flat)
-
-    muon_trig_reject = deltaR_values < 0.01
-    #muon_trig_reject = ak.any(deltaR_values < 0.01)
-
-    return muon_trig_reject
+#def muon_trigger_object_reject(sumpt, trig_eta, trig_phi, muon_eta, muon_phi, muon_vert):
+#
+#    ##need to use this but could not find the awkward version
+#    #muons = vector.awkward.zip({
+#    #"pt": ak.ones_like(muon_eta),
+#    #"eta": muon_eta,
+#    #"phi": muon_phi,
+#    #"mass": ak.ones_like(muon_eta)
+#    #},with_name="LorentzVector")
+#
+#    #trigs = vector.awkward.zip({
+#    #"pt": ak.ones_like(trig_eta),
+#    #"eta": trig_eta,
+#    #"phi": trig_phi,
+#    #"mass": ak.ones_like(trig_eta)
+#    #}, with_name="LorentzVector")
+#
+#
+#    #cartesian_muon_trig = ak.cartesian([muon_eta, muon_phi, trig_eta, trig_phi], nested=True)
+#    final_vertex_mask = ak.zeros_like(sumpt, dtype=bool)
+#
+#    print(final_vertex_mask, len(final_vertex_mask))
+#    for i in range(len(muon_eta)):
+#        for j in range(len(trig_eta)):
+#
+#            deltaR_values = deltaR(muon_eta[i], muon_phi[i], trig_eta[j], trig_phi[j])
+#            print(deltaR_values[i])
+#        
+#            if deltaR_values[i] < 0.01:
+#                final_vertex_mask[0][i] = True
+#                print(final_vertex_mask)
+#
+#                break
+#
+#    print(final_vertex_mask)
+#    #muon_trig_reject = ak.any(deltaR_values < 0.01)
+#
+#    return vertex_reject_mask
 
 def compute_muon_trig_reject(tree):
 
@@ -77,32 +136,39 @@ def compute_muon_trig_reject(tree):
     muon_eta = tree["VLMuonEta"].array()
     muon_phi = tree["VLMuonPhi"].array()
     muon_vert = tree["MuonVertInd"].array()
-
-    num_vertices = len(tree["SumPt"].array())  # assumes SumPt is per-vertex
-
-    muon_trig_reject = ak.Array([False] * num_vertices)
+    sumpt = tree["SumPt"].array()
 
     #trig_collections = [
     #    "Mu8p5IP3p5Part012345", "Mu10p5IP3p5Part012345", "Mu9IP6Part012345", "Mu8IP3Part012345", "Mu12IP6Part01234",
     #    "Mu9IP5Part01234", "Mu7IP4Part01234", "Mu9IP4Part01234", "Mu8IP5Part01234", "Mu8IP6Part01234", "Mu9IP0Part0", "Mu9IP3Part0"
     #]
 
-    trig_collections = ["Mu8IP3Part012345"]
+    ##create an n-dimensional array based on decision from each trigger. then ak.sum the decisions and save it per vertex and then reject that vertex.
+
+    #trig_collections = ["Mu8IP3Part012345"]
+
+    event_keep_mask = ak.Array([True] * len(muon_eta))  # Start by keeping all events
+
+    trig_collections = [
+        "Mu8p5IP3p5Part012345", "Mu10p5IP3p5Part012345", "Mu9IP6Part012345", "Mu8IP3Part012345", "Mu12IP6Part01234",
+        "Mu9IP5Part01234", "Mu7IP4Part01234", "Mu9IP4Part01234", "Mu8IP5Part01234", "Mu8IP6Part01234", "Mu9IP0Part0", "Mu9IP3Part0"
+    ]
 
     for name in trig_collections:
-        trig_pt = tree[f"HLT{name}Pt"].array()
         trig_eta = tree[f"HLT{name}Eta"].array()
         trig_phi = tree[f"HLT{name}Phi"].array()
 
-        if(ak.sum(ak.num(trig_pt)) == 0 and ak.sum(ak.num(trig_eta)) == 0 and ak.sum(ak.num(trig_phi)) == 0):
+        if(ak.sum(ak.num(trig_eta)) == 0) :
             print("No trigger objects found ")
-            print(trig_pt)
             continue
+        updated_mask = compute_event_mask(muon_eta, muon_phi, muon_vert, trig_eta, trig_phi)
 
-        muon_trig_reject = muon_trig_reject | muon_trigger_object_reject(
-            trig_pt, trig_eta, trig_phi, muon_pt, muon_eta, muon_phi, muon_vert
-        )
-    return muon_trig_reject
+        event_keep_mask = event_keep_mask & updated_mask
+        #print((event_keep_mask))
+
+
+    #print("event_keep_mask", (event_keep_mask))    
+    return event_keep_mask
 
 
 def process_file(filename, outdir="/cms/kaur/output"):
@@ -123,19 +189,6 @@ def process_file(filename, outdir="/cms/kaur/output"):
     
     accepted_vertices = ak.any(combined_mask, axis=1)  # accept event if any vertex passed all cuts
 
-    muon_trig_reject_mask = (compute_muon_trig_reject(tree))
-    
-
-    # Step-by-step reduce from [ev][vert][mu][trig][bool]
-    mask_lvl1 = ak.any(muon_trig_reject_mask, axis=-1)  # remove bool level
-    mask_lvl2 = ak.any(mask_lvl1, axis=-1)              # over triggers
-    mask_lvl3 = ak.any(mask_lvl2, axis=-1)              # over muons
-    mask_lvl4 = ak.any(mask_lvl3, axis=-1)              # over vertices
-    
-    # Now shape is [n_events]
-    muon_trig_reject_event_mask = mask_lvl4
-
-
     # apply *all* track cuts
     #track_cut_names = [
     #        "Track_SumPt_min",
@@ -147,9 +200,11 @@ def process_file(filename, outdir="/cms/kaur/output"):
 
     #for mask in track_masks[1:]:
     #    combined_track_masks = combined_track_masks & mask  # logical AND per-vertex
+    trig_select = compute_muon_trig_reject(tree)
 
-    final_selection = accepted_vertices & muon_trig_reject_event_mask 
-
+    #print("accepted_vertices ", accepted_vertices)
+    final_selection = accepted_vertices & trig_select 
+    #print("final_selection ", final_selection)
     # now select entries
     select_branches = ["Sphericity", "Cluster1Chi2", "Cluster2Chi2", "TotalChi2", "PVX", "PVY","PVZ", "SumPt", "SumPtSquare", "Thrust", "TransverseSphericity",
                  "TransverseThrust", "DisplacedTrackN", "IsGoodRecoVertex"]
