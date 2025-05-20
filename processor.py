@@ -36,7 +36,16 @@ def apply_cut(tree, cut_name):
     return mask 
     #return mask if cut.get("reject_if", False) else mask
 
+def lumi_mask(tree):
+    runinfo = tree["RELBO"].array()
+    #print("run_number \n", runinfo[:, 0])
+    #print("lumi block \n", runinfo[:, 2])
+    run_number = runinfo[:, 0]
+    lumi_block = runinfo[:, 2]
 
+    keep_events = ~((run_number == 319337) & (lumi_block == 48)) ##keep good lumi blocks only
+    return keep_events
+  
 def compute_event_mask(muon_eta, muon_phi, muon_vert, trig_eta, trig_phi):
     # Output: per-event mask (True = keep, False = reject)
     n_events = len(muon_eta)
@@ -171,9 +180,11 @@ def compute_muon_trig_reject(tree):
     return event_keep_mask
 
 
-def process_file(filename, outdir="/cms/kaur/output"):
+def process_file(filename, outdir="/cms/kaur/output/lumi_mask/"):
     tree = uproot.open(filename)["rootTupleTreeVeryLoose/tree"]
 
+    lumi_select = lumi_mask(tree)
+    print(lumi_select)
     # apply *all* vertex cuts
     vertex_cut_names = [
     "IsGoodRecoVertex",
@@ -203,7 +214,7 @@ def process_file(filename, outdir="/cms/kaur/output"):
     trig_select = compute_muon_trig_reject(tree)
 
     #print("accepted_vertices ", accepted_vertices)
-    final_selection = accepted_vertices & trig_select 
+    final_selection = accepted_vertices & trig_select & lumi_select 
     #print("final_selection ", final_selection)
     # now select entries
     select_branches = ["Sphericity", "Cluster1Chi2", "Cluster2Chi2", "TotalChi2", "PVX", "PVY","PVZ", "SumPt", "SumPtSquare", "Thrust", "TransverseSphericity",

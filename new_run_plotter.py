@@ -21,7 +21,7 @@ import argparse
 
 def main():
     cluster = LocalCluster()
-    cluster.scale(10)  # create 20 local workers
+    cluster.scale(20)  # create 20 local workers
     client = Client(cluster)
 
     load_fields = [
@@ -44,7 +44,7 @@ def main():
     #print(df_data["DisplacedTrackN"].compute().values)
 
     binning = [j for j in range(0, 25, 1)] + [25]
-    df_data = df_data[(df_data["Sphericity"] > 0.6) & (df_data["DisplacedTrackN"] > 8)]
+    df_data = df_data[(df_data["Sphericity"] > 0.8) & (df_data["DisplacedTrackN"] >= 9)]
 
     data_sumpT = df_data["SumPt"].compute().values
 
